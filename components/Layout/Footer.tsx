@@ -11,33 +11,70 @@ export default function Footer() {
               <span className="text-xl font-bold">SkillSwap</span>
             </div>
             <p className="text-gray-400 mb-4 max-w-md">
-              Connect with others to exchange skills and knowledge. Build your expertise while helping others grow theirs.
+              Connect with others to exchange skills and knowledge. Build your
+              expertise while helping others grow theirs.
             </p>
           </div>
-          
+
           <div>
             <h3 className="font-semibold mb-4">Platform</h3>
             <ul className="space-y-2 text-gray-400">
-              <li><a href="/browse" className="hover:text-white transition-colors">Browse Skills</a></li>
-              <li><a href="/community" className="hover:text-white transition-colors">Community</a></li>
-              <li><a href="/help" className="hover:text-white transition-colors">Help Center</a></li>
+              <li>
+                <a
+                  href="/browse"
+                  className="hover:text-white transition-colors"
+                >
+                  Browse Skills
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/community"
+                  className="hover:text-white transition-colors"
+                >
+                  Community
+                </a>
+              </li>
+              <li>
+                <a href="/help" className="hover:text-white transition-colors">
+                  Help Center
+                </a>
+              </li>
             </ul>
           </div>
-          
+
           <div>
             <h3 className="font-semibold mb-4">Legal</h3>
             <ul className="space-y-2 text-gray-400">
-              <li><a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a></li>
-              <li><a href="/terms" className="hover:text-white transition-colors">Terms of Service</a></li>
-              <li><a href="/contact" className="hover:text-white transition-colors">Contact</a></li>
+              <li>
+                <a
+                  href="/privacy"
+                  className="hover:text-white transition-colors"
+                >
+                  Privacy Policy
+                </a>
+              </li>
+              <li>
+                <a href="/terms" className="hover:text-white transition-colors">
+                  Terms of Service
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/contact"
+                  className="hover:text-white transition-colors"
+                >
+                  Contact
+                </a>
+              </li>
             </ul>
           </div>
         </div>
-        
+
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-          <p>&copy; 2024 SkillSwap Platform. All rights reserved.</p>
+          <p>&copy; 2025 SkillSwap Platform. All rights reserved.</p>
         </div>
       </div>
     </footer>
-  )
+  );
 }

@@ -1,156 +1,197 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, X, Save, User, MapPin, Clock, Eye, EyeOff } from 'lucide-react'
-import Navbar from '@/components/Layout/Navbar'
-import Footer from '@/components/Layout/Footer'
-import toast from 'react-hot-toast'
-import { User as UserType } from '@/types'
+import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, X, Save, User, MapPin, Clock, Eye, EyeOff } from "lucide-react";
+import Navbar from "@/components/Layout/Navbar";
+import Footer from "@/components/Layout/Footer";
+import toast from "react-hot-toast";
+import { User as UserType } from "@/types";
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession()
-  const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [profile, setProfile] = useState<UserType | null>(null)
-  const [newSkillOffered, setNewSkillOffered] = useState('')
-  const [newSkillWanted, setNewSkillWanted] = useState('')
-  const [newAvailability, setNewAvailability] = useState('')
+  const { data: session, status, update: updateSession } = useSession();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState<UserType | null>(null);
+  const [newSkillOffered, setNewSkillOffered] = useState("");
+  const [newSkillWanted, setNewSkillWanted] = useState("");
+  const [newAvailability, setNewAvailability] = useState("");
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-    } else if (status === 'authenticated') {
-      fetchProfile()
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
+    } else if (status === "authenticated") {
+      fetchProfile();
     }
-  }, [status, router])
+  }, [status, router]);
 
   const fetchProfile = async () => {
+    setLoading(true);
     try {
-      const response = await fetch('/api/users/profile')
+      const response = await fetch("/api/users/profile");
       if (response.ok) {
-        const data = await response.json()
-        setProfile(data)
+        const data = await response.json();
+        setProfile(data);
+      } else {
+        toast.error("Failed to load profile");
       }
     } catch (error) {
-      console.error('Error fetching profile:', error)
-      toast.error('Failed to load profile')
+      console.error("Error fetching profile:", error);
+      toast.error("Failed to load profile");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setProfilePhotoFile(file);
+      setPreviewImage(URL.createObjectURL(file));
+    }
+  };
 
   const handleSave = async () => {
-    if (!profile) return
+    if (!profile) return;
+    setSaving(true);
 
-    setSaving(true)
     try {
-      const response = await fetch('/api/users/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile)
-      })
+      const formData = new FormData();
+
+      const profileData = { ...profile };
+      delete (profileData as Partial<UserType>).profilePhoto;
+
+      formData.append("profileData", JSON.stringify(profileData));
+
+      if (profilePhotoFile) {
+        // This key must match the key expected by the API route
+        formData.append("profilePhotoFile", profilePhotoFile);
+      }
+
+      const response = await fetch("/api/users/profile", {
+        method: "PUT",
+        body: formData,
+      });
 
       if (response.ok) {
-        toast.success('Profile updated successfully!')
+        toast.success("Profile updated successfully!");
+        const { profilePhotoUrl } = await response.json();
+
+        // Update the session with the new photo URL
+        await updateSession({ profilePhoto: profilePhotoUrl });
+
+        if (profile) {
+          setProfile({ ...profile, profilePhoto: profilePhotoUrl });
+        }
+        setProfilePhotoFile(null);
+        setPreviewImage(null);
       } else {
-        throw new Error('Failed to update profile')
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update profile");
       }
     } catch (error) {
-      console.error('Error updating profile:', error)
-      toast.error('Failed to update profile')
+      console.error("Error updating profile:", error);
+      toast.error(
+        error instanceof Error ? error.message : "An unknown error occurred"
+      );
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const addSkillOffered = () => {
     if (newSkillOffered.trim() && profile) {
       setProfile({
         ...profile,
-        skillsOffered: [...profile.skillsOffered, newSkillOffered.trim()]
-      })
-      setNewSkillOffered('')
+        skillsOffered: [...profile.skillsOffered, newSkillOffered.trim()],
+      });
+      setNewSkillOffered("");
     }
-  }
+  };
 
   const removeSkillOffered = (index: number) => {
     if (profile) {
       setProfile({
         ...profile,
-        skillsOffered: profile.skillsOffered.filter((_, i) => i !== index)
-      })
+        skillsOffered: profile.skillsOffered.filter((_, i) => i !== index),
+      });
     }
-  }
+  };
 
   const addSkillWanted = () => {
     if (newSkillWanted.trim() && profile) {
       setProfile({
         ...profile,
-        skillsWanted: [...profile.skillsWanted, newSkillWanted.trim()]
-      })
-      setNewSkillWanted('')
+        skillsWanted: [...profile.skillsWanted, newSkillWanted.trim()],
+      });
+      setNewSkillWanted("");
     }
-  }
+  };
 
   const removeSkillWanted = (index: number) => {
     if (profile) {
       setProfile({
         ...profile,
-        skillsWanted: profile.skillsWanted.filter((_, i) => i !== index)
-      })
+        skillsWanted: profile.skillsWanted.filter((_, i) => i !== index),
+      });
     }
-  }
+  };
 
   const addAvailability = () => {
     if (newAvailability.trim() && profile) {
       setProfile({
         ...profile,
-        availability: [...profile.availability, newAvailability.trim()]
-      })
-      setNewAvailability('')
+        availability: [...profile.availability, newAvailability.trim()],
+      });
+      setNewAvailability("");
     }
-  }
+  };
 
   const removeAvailability = (index: number) => {
     if (profile) {
       setProfile({
         ...profile,
-        availability: profile.availability.filter((_, i) => i !== index)
-      })
+        availability: profile.availability.filter((_, i) => i !== index),
+      });
     }
-  }
+  };
 
-  if (status === 'loading' || loading) {
+  if (status === "loading" || loading || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600"></div>
       </div>
-    )
-  }
-
-  if (!session || !profile) {
-    return null
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
+
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Profile</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Edit Profile
+          </h1>
           <p className="text-gray-600">
             Update your information and skills to connect with others
           </p>
@@ -168,21 +209,38 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent className="text-center">
                 <Avatar className="h-32 w-32 mx-auto mb-4">
-                  <AvatarImage src={profile.profilePhoto} />
+                  <AvatarImage
+                    src={previewImage || profile.profilePhoto || ""}
+                  />
                   <AvatarFallback className="bg-purple-100 text-purple-600 text-2xl">
                     {profile.name.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
-                <Button variant="outline" className="mb-4">
+
+                <Button
+                  variant="outline"
+                  className="mb-4"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   Change Photo
                 </Button>
+                <Input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept="image/*"
+                />
+
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="name">Full Name</Label>
                     <Input
                       id="name"
                       value={profile.name}
-                      onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                      onChange={(e) =>
+                        setProfile({ ...profile, name: e.target.value })
+                      }
                       className="mt-1"
                     />
                   </div>
@@ -216,15 +274,19 @@ export default function ProfilePage() {
                   <Input
                     id="location"
                     placeholder="e.g., New York, NY"
-                    value={profile.location || ''}
-                    onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                    value={profile.location || ""}
+                    onChange={(e) =>
+                      setProfile({ ...profile, location: e.target.value })
+                    }
                     className="mt-1"
                   />
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-base font-medium">Profile Visibility</Label>
+                    <Label className="text-base font-medium">
+                      Profile Visibility
+                    </Label>
                     <p className="text-sm text-gray-500">
                       Make your profile visible to other users
                     </p>
@@ -237,7 +299,9 @@ export default function ProfilePage() {
                     )}
                     <Switch
                       checked={profile.isPublic}
-                      onCheckedChange={(checked) => setProfile({ ...profile, isPublic: checked })}
+                      onCheckedChange={(checked) =>
+                        setProfile({ ...profile, isPublic: checked })
+                      }
                     />
                   </div>
                 </div>
@@ -256,16 +320,20 @@ export default function ProfilePage() {
                       placeholder="Add a skill you can teach"
                       value={newSkillOffered}
                       onChange={(e) => setNewSkillOffered(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && addSkillOffered()}
+                      onKeyPress={(e) => e.key === "Enter" && addSkillOffered()}
                     />
                     <Button onClick={addSkillOffered} size="sm">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2">
                     {profile.skillsOffered.map((skill, index) => (
-                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                      <Badge
+                        key={index}
+                        variant="secondary"
+                        className="flex items-center gap-1"
+                      >
                         {skill}
                         <X
                           className="h-3 w-3 cursor-pointer hover:text-red-500"
@@ -290,16 +358,20 @@ export default function ProfilePage() {
                       placeholder="Add a skill you want to learn"
                       value={newSkillWanted}
                       onChange={(e) => setNewSkillWanted(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && addSkillWanted()}
+                      onKeyPress={(e) => e.key === "Enter" && addSkillWanted()}
                     />
                     <Button onClick={addSkillWanted} size="sm">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2">
                     {profile.skillsWanted.map((skill, index) => (
-                      <Badge key={index} variant="outline" className="flex items-center gap-1">
+                      <Badge
+                        key={index}
+                        variant="outline"
+                        className="flex items-center gap-1"
+                      >
                         {skill}
                         <X
                           className="h-3 w-3 cursor-pointer hover:text-red-500"
@@ -323,7 +395,10 @@ export default function ProfilePage() {
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex space-x-2">
-                    <Select value={newAvailability} onValueChange={setNewAvailability}>
+                    <Select
+                      value={newAvailability}
+                      onValueChange={setNewAvailability}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select availability" />
                       </SelectTrigger>
@@ -336,14 +411,22 @@ export default function ProfilePage() {
                         <SelectItem value="Flexible">Flexible</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button onClick={addAvailability} size="sm">
+                    <Button
+                      onClick={addAvailability}
+                      size="sm"
+                      disabled={!newAvailability}
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2">
                     {profile.availability.map((time, index) => (
-                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                      <Badge
+                        key={index}
+                        variant="secondary"
+                        className="flex items-center gap-1"
+                      >
                         {time}
                         <X
                           className="h-3 w-3 cursor-pointer hover:text-red-500"
@@ -365,7 +448,7 @@ export default function ProfilePage() {
                 size="lg"
               >
                 <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Saving...' : 'Save Changes'}
+                {saving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </div>
@@ -374,5 +457,5 @@ export default function ProfilePage() {
 
       <Footer />
     </div>
-  )
+  );
 }

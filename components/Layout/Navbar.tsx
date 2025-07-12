@@ -1,29 +1,39 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useSession, signOut } from 'next-auth/react'
-import { Button } from '@/components/ui/button'
+import { useState } from "react";
+import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Search, Menu, X, User, Settings, LogOut, Users, MessageSquare, UserCircle } from 'lucide-react'
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Search,
+  Menu,
+  X,
+  User,
+  Settings,
+  LogOut,
+  Users,
+  MessageSquare,
+  UserCircle,
+} from "lucide-react";
 
 export default function Navbar() {
-  const { data: session } = useSession()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { data: session } = useSession();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navLinks = [
-    { href: '/dashboard', label: 'Dashboard', icon: User },
-    { href: '/browse', label: 'Browse Skills', icon: Search },
-    { href: '/swaps', label: 'My Swaps', icon: MessageSquare },
-    { href: '/users', label: 'Community', icon: Users },
-  ]
+    { href: "/dashboard", label: "Dashboard", icon: User },
+    { href: "/browse", label: "Browse Skills", icon: Search },
+    { href: "/swaps", label: "My Swaps", icon: MessageSquare },
+    { href: "/users", label: "Community", icon: Users },
+  ];
 
   return (
     <nav className="bg-white shadow-lg border-b border-gray-100 sticky top-0 z-50">
@@ -39,16 +49,17 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {session && navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="flex items-center space-x-1 text-gray-600 hover:text-purple-600 transition-colors"
-              >
-                <link.icon className="w-4 h-4" />
-                <span>{link.label}</span>
-              </Link>
-            ))}
+            {session &&
+              navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="flex items-center space-x-1 text-gray-600 hover:text-purple-600 transition-colors"
+                >
+                  <link.icon className="w-4 h-4" />
+                  <span>{link.label}</span>
+                </Link>
+              ))}
           </div>
 
           {/* User Menu */}
@@ -56,11 +67,17 @@ export default function Navbar() {
             {session ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Button
+                    variant="ghost"
+                    className="relative h-8 w-8 rounded-full"
+                  >
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={session.user?.image || ''} alt={session.user?.name || ''} />
+                      <AvatarImage
+                        src={session.user?.image || ""}
+                        alt={session.user?.name || ""}
+                      />
                       <AvatarFallback className="bg-purple-100 text-purple-600">
-                        {session.user?.name?.charAt(0) || 'U'}
+                        {session.user?.name?.charAt(0) || "U"}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -81,13 +98,7 @@ export default function Navbar() {
                       Profile
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="flex items-center">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  {session.user?.role === 'admin' && (
+                  {session.user?.role === "admin" && (
                     <DropdownMenuItem asChild>
                       <Link href="/admin" className="flex items-center">
                         <User className="mr-2 h-4 w-4" />
@@ -108,7 +119,9 @@ export default function Navbar() {
                   <Button variant="ghost">Sign In</Button>
                 </Link>
                 <Link href="/auth/signup">
-                  <Button className="bg-purple-600 hover:bg-purple-700">Sign Up</Button>
+                  <Button className="bg-purple-600 hover:bg-purple-700">
+                    Sign Up
+                  </Button>
                 </Link>
               </div>
             )}
@@ -120,7 +133,11 @@ export default function Navbar() {
               className="md:hidden"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
-              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {isMenuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
             </Button>
           </div>
         </div>
@@ -145,5 +162,5 @@ export default function Navbar() {
         )}
       </div>
     </nav>
-  )
+  );
 }

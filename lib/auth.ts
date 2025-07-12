@@ -1,67 +1,74 @@
-import { NextAuthOptions } from 'next-auth'
-import CredentialsProvider from 'next-auth/providers/credentials'
-import { MongoDBAdapter } from '@auth/mongodb-adapter'
-import clientPromise from './mongodb'
-import bcrypt from 'bcryptjs'
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { MongoDBAdapter } from "@auth/mongodb-adapter";
+import clientPromise from "./mongodb";
+import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
   adapter: MongoDBAdapter(clientPromise),
   providers: [
     CredentialsProvider({
-      name: 'credentials',
+      name: "credentials",
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' }
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          return null
+          return null;
         }
 
-        const client = await clientPromise
-        const users = client.db().collection('users')
-        
-        const user = await users.findOne({ email: credentials.email })
-        
+        const client = await clientPromise;
+        const users = client.db().collection("users");
+
+        const user = await users.findOne({ email: credentials.email });
+
         if (!user) {
-          return null
+          return null;
         }
 
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.password)
-        
+        const isPasswordValid = await bcrypt.compare(
+          credentials.password,
+          user.password
+        );
+
         if (!isPasswordValid) {
-          return null
+          return null;
         }
 
         return {
           id: user._id.toString(),
           email: user.email,
           name: user.name,
-          role: user.role || 'user'
-        }
-      }
-    })
+          role: user.role || "user",
+        };
+      },
+    }),
   ],
   session: {
-    strategy: 'jwt'
+    strategy: "jwt",
   },
+
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role
+        token.role = user.role;
+        token.id = user.id;
+        token.profilePhoto = user.profilePhoto;
       }
-      return token
+      return token;
     },
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.sub!
-        session.user.role = token.role as string
+        session.user.id = token.sub!;
+        session.user.role = token.role as string;
+        session.user.profilePhoto = token.profilePhoto as string;
       }
-      return session
-    }
+      return session;
+    },
   },
   pages: {
-    signIn: '/auth/signin',
-    signUp: '/auth/signup'
-  }
-}
+    signIn: "/auth/signin",
+    signUp: "/auth/signup",
+  },
+};
