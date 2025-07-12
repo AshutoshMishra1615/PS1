@@ -12,6 +12,7 @@ import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
 import toast from "react-hot-toast"; // Import toast for notifications
 import { User } from "@/types";
+import { ChatBot } from "@/components/chatbot";
 
 export default function UsersPage() {
   const { data: session } = useSession();
