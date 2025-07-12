@@ -1,7 +1,7 @@
 import NextAuth, { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { MongoDBAdapter } from "@auth/mongodb-adapter";
-import clientPromise from "@/app/lib/mongodb"; // Corrected path to be more standard
+import { MongoDBAdapter } from "@next-auth/mongodb-adapter";
+import clientPromise from "@/app/lib/mongodb";
 import User from "@/models/user"; // Import your User model
 
 export const authOptions: AuthOptions = {
