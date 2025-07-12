@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,10 @@ import toast from "react-hot-toast";
 import { User as UserType } from "@/types";
 import { ChatBot } from "@/components/chatbot";
 
+// Remove this duplicate declaration
+
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,6 +36,9 @@ export default function ProfilePage() {
   const [newSkillOffered, setNewSkillOffered] = useState("");
   const [newSkillWanted, setNewSkillWanted] = useState("");
   const [newAvailability, setNewAvailability] = useState("");
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -44,11 +49,14 @@ export default function ProfilePage() {
   }, [status, router]);
 
   const fetchProfile = async () => {
+    setLoading(true);
     try {
       const response = await fetch("/api/users/profile");
       if (response.ok) {
         const data = await response.json();
         setProfile(data);
+      } else {
+        toast.error("Failed to load profile");
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -58,25 +66,57 @@ export default function ProfilePage() {
     }
   };
 
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setProfilePhotoFile(file);
+      setPreviewImage(URL.createObjectURL(file));
+    }
+  };
+
   const handleSave = async () => {
     if (!profile) return;
-
     setSaving(true);
+
     try {
+      const formData = new FormData();
+
+      const profileData = { ...profile };
+      delete (profileData as Partial<UserType>).profilePhoto;
+
+      formData.append("profileData", JSON.stringify(profileData));
+
+      if (profilePhotoFile) {
+        // This key must match the key expected by the API route
+        formData.append("profilePhotoFile", profilePhotoFile);
+      }
+
       const response = await fetch("/api/users/profile", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        body: formData,
       });
 
       if (response.ok) {
         toast.success("Profile updated successfully!");
+        const { profilePhotoUrl } = await response.json();
+
+        // Update the session with the new photo URL
+        await updateSession({ profilePhoto: profilePhotoUrl });
+
+        if (profile) {
+          setProfile({ ...profile, profilePhoto: profilePhotoUrl });
+        }
+        setProfilePhotoFile(null);
+        setPreviewImage(null);
       } else {
-        throw new Error("Failed to update profile");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update profile");
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error("Failed to update profile");
+      toast.error(
+        error instanceof Error ? error.message : "An unknown error occurred"
+      );
     } finally {
       setSaving(false);
     }
@@ -139,16 +179,12 @@ export default function ProfilePage() {
     }
   };
 
-  if (status === "loading" || loading) {
+  if (status === "loading" || loading || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600"></div>
       </div>
     );
-  }
-
-  if (!session || !profile) {
-    return null;
   }
 
   return (
@@ -177,14 +213,29 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent className="text-center">
                 <Avatar className="h-32 w-32 mx-auto mb-4">
-                  <AvatarImage src={profile.profilePhoto} />
+                  <AvatarImage
+                    src={previewImage || profile.profilePhoto || ""}
+                  />
                   <AvatarFallback className="bg-purple-100 text-purple-600 text-2xl">
                     {profile.name.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
-                <Button variant="outline" className="mb-4">
+
+                <Button
+                  variant="outline"
+                  className="mb-4"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   Change Photo
                 </Button>
+                <Input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept="image/*"
+                />
+
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="name">Full Name</Label>
@@ -364,7 +415,11 @@ export default function ProfilePage() {
                         <SelectItem value="Flexible">Flexible</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button onClick={addAvailability} size="sm">
+                    <Button
+                      onClick={addAvailability}
+                      size="sm"
+                      disabled={!newAvailability}
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>

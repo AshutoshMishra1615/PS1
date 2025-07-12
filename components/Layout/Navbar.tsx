@@ -1,29 +1,86 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useSession, signOut } from 'next-auth/react'
-import { Button } from '@/components/ui/button'
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
+import { io } from "socket.io-client"; // 1. Import socket.io client
+import toast from "react-hot-toast"; // 2. Import toast for displaying notifications
+
+// UI and Icon Imports
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Search, Menu, X, User, Settings, LogOut, Users, MessageSquare, UserCircle } from 'lucide-react'
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Search,
+  Menu,
+  X,
+  User,
+  Settings,
+  LogOut,
+  Users,
+  MessageSquare, // Kept for icon usage, can be changed
+  UserCircle,
+  Bell, // 3. Import the Bell icon
+} from "lucide-react";
 
 export default function Navbar() {
-  const { data: session } = useSession()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { data: session } = useSession();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // 4. State to hold the count of notifications
+  const [notificationCount, setNotificationCount] = useState(0);
 
+  // 5. Update navLinks for new "Friends" page
   const navLinks = [
-    { href: '/dashboard', label: 'Dashboard', icon: User },
-    { href: '/browse', label: 'Browse Skills', icon: Search },
-    { href: '/swaps', label: 'My Swaps', icon: MessageSquare },
-    { href: '/users', label: 'Community', icon: Users },
-  ]
+    { href: "/dashboard", label: "Dashboard", icon: User },
+    { href: "/users", label: "Community", icon: Users },
+    { href: "/friends", label: "My Friends", icon: MessageSquare },
+  ];
+
+  // 6. useEffect for handling real-time notifications
+  useEffect(() => {
+    // Only run this if the user is logged in
+    if (session?.user?.id) {
+      // Fetch initial pending requests count on load
+      const fetchInitialCount = async () => {
+        try {
+          const response = await fetch("/api/friends/requests/pending");
+          if (response.ok) {
+            const pendingRequests = await response.json();
+            setNotificationCount(pendingRequests.length);
+          }
+        } catch (error) {
+          console.error("Failed to fetch initial notification count:", error);
+        }
+      };
+
+      fetchInitialCount();
+
+      // Connect to the WebSocket server
+      const socket = io("http://localhost:3001");
+
+      // Register the user with their ID to receive personal notifications
+      socket.emit("register", session.user.id);
+
+      // Listen for incoming 'receive_notification' events
+      socket.on("receive_notification", (notification) => {
+        // Show a toast message to the user
+        toast.success(notification.message, { icon: "🔔" });
+        // Increment the notification count
+        setNotificationCount((prevCount) => prevCount + 1);
+      });
+
+      // Cleanup function to disconnect the socket when the component unmounts
+      return () => {
+        socket.disconnect();
+      };
+    }
+  }, [session]); // This effect re-runs when the session changes (login/logout)
 
   return (
     <nav className="bg-white shadow-lg border-b border-gray-100 sticky top-0 z-50">
@@ -39,76 +96,99 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {session && navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="flex items-center space-x-1 text-gray-600 hover:text-purple-600 transition-colors"
-              >
-                <link.icon className="w-4 h-4" />
-                <span>{link.label}</span>
-              </Link>
-            ))}
+            {session &&
+              navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="flex items-center space-x-1 text-gray-600 hover:text-purple-600 transition-colors"
+                >
+                  <link.icon className="w-4 h-4" />
+                  <span>{link.label}</span>
+                </Link>
+              ))}
           </div>
 
-          {/* User Menu */}
+          {/* User Menu & Actions */}
           <div className="flex items-center space-x-4">
             {session ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={session.user?.image || ''} alt={session.user?.name || ''} />
-                      <AvatarFallback className="bg-purple-100 text-purple-600">
-                        {session.user?.name?.charAt(0) || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
+              <>
+                {/* 7. Notification Bell UI */}
+                <Link href="/friends">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="relative"
+                    onClick={() => setNotificationCount(0)} // Reset count on click
+                  >
+                    <Bell className="h-5 w-5" />
+                    {notificationCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                        {notificationCount}
+                      </span>
+                    )}
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <div className="flex items-center justify-start gap-2 p-2">
-                    <div className="flex flex-col space-y-1 leading-none">
-                      <p className="font-medium">{session.user?.name}</p>
-                      <p className="w-[200px] truncate text-sm text-muted-foreground">
-                        {session.user?.email}
-                      </p>
+                </Link>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="relative h-8 w-8 rounded-full"
+                    >
+                      <Avatar className="h-8 w-8">
+                        {/* 8. Corrected AvatarImage source */}
+                        <AvatarImage
+                          src={session.user?.profilePhoto || ""}
+                          alt={session.user?.name || ""}
+                        />
+                        <AvatarFallback className="bg-purple-100 text-purple-600">
+                          {session.user?.name?.charAt(0) || "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="flex items-center justify-start gap-2 p-2">
+                      <div className="flex flex-col space-y-1 leading-none">
+                        <p className="font-medium">{session.user?.name}</p>
+                        <p className="w-[200px] truncate text-sm text-muted-foreground">
+                          {session.user?.email}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile" className="flex items-center">
-                      <UserCircle className="mr-2 h-4 w-4" />
-                      Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="flex items-center">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  {session.user?.role === 'admin' && (
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href="/admin" className="flex items-center">
-                        <User className="mr-2 h-4 w-4" />
-                        Admin Panel
+                      <Link href="/profile" className="flex items-center">
+                        <UserCircle className="mr-2 h-4 w-4" />
+                        Profile
                       </Link>
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => signOut()}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    {session.user?.role === "admin" && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="flex items-center">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Admin Panel
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => signOut()}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <div className="flex items-center space-x-2">
                 <Link href="/auth/signin">
                   <Button variant="ghost">Sign In</Button>
                 </Link>
                 <Link href="/auth/signup">
-                  <Button className="bg-purple-600 hover:bg-purple-700">Sign Up</Button>
+                  <Button className="bg-purple-600 hover:bg-purple-700">
+                    Sign Up
+                  </Button>
                 </Link>
               </div>
             )}
@@ -120,7 +200,11 @@ export default function Navbar() {
               className="md:hidden"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
-              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {isMenuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
             </Button>
           </div>
         </div>
@@ -145,5 +229,5 @@ export default function Navbar() {
         )}
       </div>
     </nav>
-  )
+  );
 }
