@@ -1,11 +1,11 @@
 import NextAuth, { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
-import clientPromise from "@/app/lib/mongodb"; // Corrected path to be more standard
-import User from "@/models/user"; // Import your User model
+import clientPromise from "@/app/lib/mongodb";
+import dbConnect from "@/lib/mongoose";
+import User from "@/models/user";
 
 export const authOptions: AuthOptions = {
-  // Use the MongoDB adapter to connect NextAuth with your database
   adapter: MongoDBAdapter(clientPromise),
   providers: [
     GoogleProvider({
@@ -14,27 +14,56 @@ export const authOptions: AuthOptions = {
     }),
   ],
   session: {
-    // Use JSON Web Tokens for session management
     strategy: "jwt",
   },
   callbacks: {
-    // The jwt callback is called whenever a JWT is created or updated.
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "google") {
+        try {
+          await dbConnect();
+
+          // Check if user exists in our custom User model
+          let dbUser = await User.findOne({ email: user.email });
+
+          if (!dbUser) {
+            // Create new user in our custom User model
+            dbUser = new User({
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              role: "user",
+              skills: {
+                offered: [],
+                wanted: [],
+              },
+              rating: 0,
+              totalRatings: 0,
+            });
+            await dbUser.save();
+          }
+        } catch (error) {
+          console.error("Error in signIn callback:", error);
+          return false;
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
-      // On the initial sign-in, the 'user' object is available.
-      // We persist the user's ID and role to the token.
       if (user) {
         token.id = user.id;
-        // The user object here is from the database, so we can access the role
-        // This assumes your adapter returns the full user object.
-        const dbUser = await User.findOne({ email: user.email });
-        token.role = dbUser.role;
+        try {
+          await dbConnect();
+          const dbUser = await User.findOne({ email: user.email });
+          if (dbUser) {
+            token.role = dbUser.role;
+          }
+        } catch (error) {
+          console.error("Error in jwt callback:", error);
+        }
       }
       return token;
     },
-    // The session callback is called whenever a session is accessed.
     async session({ session, token }) {
-      // We transfer the 'id' and 'role' from the token to the session object.
-      // This makes the data available on the client-side.
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as "user" | "admin";
@@ -44,7 +73,6 @@ export const authOptions: AuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
-    // You can specify custom pages for sign-in, sign-out, etc.
     signIn: "/auth/signin",
   },
 };
