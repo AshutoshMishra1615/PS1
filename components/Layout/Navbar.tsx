@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { io } from "socket.io-client"; // 1. Import socket.io client
-import toast from "react-hot-toast"; // 2. Import toast for displaying notifications
+import { io } from "socket.io-client";
+import toast from "react-hot-toast";
 
 // UI and Icon Imports
 import { Button } from "@/components/ui/button";
@@ -24,29 +24,29 @@ import {
   Settings,
   LogOut,
   Users,
-  MessageSquare, // Kept for icon usage, can be changed
+  MessageSquare,
   UserCircle,
-  Bell, // 3. Import the Bell icon
+  Bell,
+  RefreshCw, // 1. Re-added icon for "My Swaps"
 } from "lucide-react";
 
 export default function Navbar() {
   const { data: session } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  // 4. State to hold the count of notifications
   const [notificationCount, setNotificationCount] = useState(0);
 
-  // 5. Update navLinks for new "Friends" page
+  // 2. Restored navLinks to include all sections
   const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: User },
+    { href: "/browse", label: "Browse Skills", icon: Search },
     { href: "/users", label: "Community", icon: Users },
+    { href: "/swaps", label: "My Swaps", icon: RefreshCw },
     { href: "/friends", label: "My Friends", icon: MessageSquare },
   ];
 
-  // 6. useEffect for handling real-time notifications
+  // This useEffect handles real-time notifications and remains unchanged
   useEffect(() => {
-    // Only run this if the user is logged in
     if (session?.user?.id) {
-      // Fetch initial pending requests count on load
       const fetchInitialCount = async () => {
         try {
           const response = await fetch("/api/friends/requests/pending");
@@ -58,29 +58,21 @@ export default function Navbar() {
           console.error("Failed to fetch initial notification count:", error);
         }
       };
-
       fetchInitialCount();
 
-      // Connect to the WebSocket server
       const socket = io("http://localhost:3001");
-
-      // Register the user with their ID to receive personal notifications
       socket.emit("register", session.user.id);
 
-      // Listen for incoming 'receive_notification' events
       socket.on("receive_notification", (notification) => {
-        // Show a toast message to the user
         toast.success(notification.message, { icon: "🔔" });
-        // Increment the notification count
         setNotificationCount((prevCount) => prevCount + 1);
       });
 
-      // Cleanup function to disconnect the socket when the component unmounts
       return () => {
         socket.disconnect();
       };
     }
-  }, [session]); // This effect re-runs when the session changes (login/logout)
+  }, [session]);
 
   return (
     <nav className="bg-white shadow-lg border-b border-gray-100 sticky top-0 z-50">
@@ -113,13 +105,13 @@ export default function Navbar() {
           <div className="flex items-center space-x-4">
             {session ? (
               <>
-                {/* 7. Notification Bell UI */}
+                {/* Notification Bell UI remains */}
                 <Link href="/friends">
                   <Button
                     variant="ghost"
                     size="sm"
                     className="relative"
-                    onClick={() => setNotificationCount(0)} // Reset count on click
+                    onClick={() => setNotificationCount(0)}
                   >
                     <Bell className="h-5 w-5" />
                     {notificationCount > 0 && (
@@ -137,7 +129,6 @@ export default function Navbar() {
                       className="relative h-8 w-8 rounded-full"
                     >
                       <Avatar className="h-8 w-8">
-                        {/* 8. Corrected AvatarImage source */}
                         <AvatarImage
                           src={session.user?.profilePhoto || ""}
                           alt={session.user?.name || ""}
