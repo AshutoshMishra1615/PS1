@@ -80,3 +80,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* /app/globals.css */
+
+/* ... your other styles ... */
+
+.story-step.is-active {
+  opacity: 1 !important;
+  transform: scale(1.02);
+}
