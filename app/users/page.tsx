@@ -1,64 +1,65 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Search, MapPin, Star, MessageSquare, Users } from 'lucide-react'
-import Navbar from '@/components/Layout/Navbar'
-import Footer from '@/components/Layout/Footer'
-import SwapRequestModal from '@/components/Modals/SwapRequestModal'
-import { User } from '@/types'
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Search, MapPin, Star, MessageSquare, Users } from "lucide-react";
+import Navbar from "@/components/Layout/Navbar";
+import Footer from "@/components/Layout/Footer";
+import SwapRequestModal from "@/components/Modals/SwapRequestModal";
+import { User } from "@/types";
+import { ChatBot } from "@/components/chatbot";
 
 export default function UsersPage() {
-  const { data: session } = useSession()
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [showSwapModal, setShowSwapModal] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const { data: session } = useSession();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    fetchUsers()
-  }, [searchTerm, currentPage])
+    fetchUsers();
+  }, [searchTerm, currentPage]);
 
   const fetchUsers = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const params = new URLSearchParams({
         page: currentPage.toString(),
-        limit: '16'
-      })
+        limit: "16",
+      });
 
-      if (searchTerm) params.append('skill', searchTerm)
+      if (searchTerm) params.append("skill", searchTerm);
 
-      const response = await fetch(`/api/users/search?${params}`)
+      const response = await fetch(`/api/users/search?${params}`);
       if (response.ok) {
-        const data = await response.json()
-        setUsers(data.users)
-        setTotalPages(data.pagination.total)
+        const data = await response.json();
+        setUsers(data.users);
+        setTotalPages(data.pagination.total);
       }
     } catch (error) {
-      console.error('Error fetching users:', error)
+      console.error("Error fetching users:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSwapRequest = (user: User) => {
-    setSelectedUser(user)
-    setShowSwapModal(true)
-  }
+    setSelectedUser(user);
+    setShowSwapModal(true);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -113,7 +114,10 @@ export default function UsersPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {users.map((user) => (
-                <Card key={user._id} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                <Card
+                  key={user._id}
+                  className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                >
                   <CardContent className="p-6">
                     <div className="text-center mb-4">
                       <Avatar className="h-16 w-16 mx-auto mb-3">
@@ -122,7 +126,9 @@ export default function UsersPage() {
                           {user.name.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
-                      <h3 className="font-semibold text-gray-900">{user.name}</h3>
+                      <h3 className="font-semibold text-gray-900">
+                        {user.name}
+                      </h3>
                       {user.location && (
                         <p className="text-sm text-gray-500 flex items-center justify-center mt-1">
                           <MapPin className="h-3 w-3 mr-1" />
@@ -144,11 +150,17 @@ export default function UsersPage() {
                             Skills Offered
                           </p>
                           <div className="flex flex-wrap gap-1">
-                            {user.skillsOffered.slice(0, 2).map((skill, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {skill}
-                              </Badge>
-                            ))}
+                            {user.skillsOffered
+                              .slice(0, 2)
+                              .map((skill, index) => (
+                                <Badge
+                                  key={index}
+                                  variant="secondary"
+                                  className="text-xs"
+                                >
+                                  {skill}
+                                </Badge>
+                              ))}
                             {user.skillsOffered.length > 2 && (
                               <Badge variant="outline" className="text-xs">
                                 +{user.skillsOffered.length - 2}
@@ -164,11 +176,17 @@ export default function UsersPage() {
                             Skills Wanted
                           </p>
                           <div className="flex flex-wrap gap-1">
-                            {user.skillsWanted.slice(0, 2).map((skill, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {skill}
-                              </Badge>
-                            ))}
+                            {user.skillsWanted
+                              .slice(0, 2)
+                              .map((skill, index) => (
+                                <Badge
+                                  key={index}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
+                                  {skill}
+                                </Badge>
+                              ))}
                             {user.skillsWanted.length > 2 && (
                               <Badge variant="outline" className="text-xs">
                                 +{user.skillsWanted.length - 2}
@@ -200,29 +218,37 @@ export default function UsersPage() {
                 <div className="flex space-x-2">
                   <Button
                     variant="outline"
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                    }
                     disabled={currentPage === 1}
                   >
                     Previous
                   </Button>
-                  
+
                   {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                    const page = i + 1
+                    const page = i + 1;
                     return (
                       <Button
                         key={page}
                         variant={currentPage === page ? "default" : "outline"}
                         onClick={() => setCurrentPage(page)}
-                        className={currentPage === page ? "bg-purple-600 hover:bg-purple-700" : ""}
+                        className={
+                          currentPage === page
+                            ? "bg-purple-600 hover:bg-purple-700"
+                            : ""
+                        }
                       >
                         {page}
                       </Button>
-                    )
+                    );
                   })}
-                  
+
                   <Button
                     variant="outline"
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                    }
                     disabled={currentPage === totalPages}
                   >
                     Next
@@ -235,22 +261,23 @@ export default function UsersPage() {
       </main>
 
       <Footer />
+      <ChatBot />
 
       {/* Swap Request Modal */}
       {selectedUser && (
         <SwapRequestModal
           isOpen={showSwapModal}
           onClose={() => {
-            setShowSwapModal(false)
-            setSelectedUser(null)
+            setShowSwapModal(false);
+            setSelectedUser(null);
           }}
           targetUser={selectedUser}
           onSuccess={() => {
-            setShowSwapModal(false)
-            setSelectedUser(null)
+            setShowSwapModal(false);
+            setSelectedUser(null);
           }}
         />
       )}
     </div>
-  )
+  );
 }
