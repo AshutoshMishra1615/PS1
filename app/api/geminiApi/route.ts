@@ -1,91 +1,88 @@
-// app/api/geminiApi/route.ts
 import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth"; // adjust path if needed
+import { authOptions } from "@/lib/auth";
 import { MongoClient } from "mongodb";
-import axios from "axios";
+import { GoogleGenAI } from "@google/genai";
 
-const MONGODB_URI = process.env.MONGODB_URI!;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
-const DB_NAME = process.env.DB_NAME!; // change if needed
+const MONGODB_URI = process.env.MONGODB_URI!;
+const DB_NAME = "test"; // your DB name from MongoDB
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || !session.user?.email) {
+
+  if (!session?.user?.email) {
     return new Response(
       JSON.stringify({ aiText: "Please log in to use the assistant." }),
-      { status: 401 }
+      { status: 401, headers: { "Content-Type": "application/json" } }
     );
   }
 
   const { message } = await req.json();
 
   try {
-    // Connect to MongoDB and fetch user data
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
     const db = client.db(DB_NAME);
+
     const userDoc = await db
       .collection("users")
       .findOne({ email: session.user.email });
 
     if (!userDoc) {
       return new Response(
-        JSON.stringify({
-          aiText:
-            "Couldn't find your profile. Please complete your profile first.",
-        }),
-        { status: 404 }
+        JSON.stringify({ aiText: "Your profile was not found in the system." }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
 
+    const {
+      name = "User",
+      skillsOffered = [],
+      skillsWanted = [],
+      availability = "Not provided",
+      location = "Not provided",
+    } = userDoc;
+
     const prompt = `
-You are a helpful assistant for the Skill Swap platform.
+You are a helpful assistant for the Skill Swap Platform.
 
 User Info:
-- Name: ${userDoc.name || "Anonymous"}
-- Skills Offered: ${userDoc.skillsOffered?.join(", ") || "None"}
-- Skills Wanted: ${userDoc.skillsWanted?.join(", ") || "None"}
-- Availability: ${userDoc.availability || "Not provided"}
+- Name: ${name}
+- Skills Offered: ${skillsOffered.join(", ") || "None"}
+- Skills Wanted: ${skillsWanted.join(", ") || "None"}
+- Availability: ${availability}
+- Location: ${location}
 
 Your job:
-- Help users navigate the platform
-- Guide them on: adding skills, requesting swaps, accepting/rejecting swaps, leaving feedback, privacy settings, etc.
-- If they ask anything unrelated to the platform, say: "I can only help with Skill Swap-related questions."
+- Help users navigate the Skill Swap platform.
+- Answer questions about: skill offering, requesting swaps, accepting/rejecting swaps, profile visibility, ratings, feedback, and finding users by skill.
+- If the user asks anything unrelated to the platform, say: "I can only help with Skill Swap-related questions."
 
-Only reply in under 60 words, no markdown, no formatting.
+Reply in under 60 words. No markdown or special formatting.
 
 User's question:
 "${message}"
 `;
 
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
-      }
-    );
-
-    const aiText =
-      response.data.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "I can only help with Skill Swap-related questions.";
+    const ai = new GoogleGenAI({
+      apiKey: GEMINI_API_KEY,
+    });
+    const resp = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+    });
+    const aiText = resp.text;
 
     return new Response(JSON.stringify({ aiText }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   } catch (err: any) {
-    console.error("Gemini API Error:", err.message);
+    console.error("🔥 Gemini API Error:", err);
     return new Response(
-      JSON.stringify({ aiText: "An error occurred. Please try again." }),
-      {
-        status: 500,
-      }
+      JSON.stringify({ aiText: "Something went wrong. Please try again." }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }

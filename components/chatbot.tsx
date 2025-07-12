@@ -13,8 +13,7 @@ export function ChatBot() {
   const [messages, setMessages] = useState([
     {
       id: "1",
-      content:
-        "👋 Hi! I'm your thermal assistant. Ask me about Peltier modules, Seebeck effect, or any thermal queries!",
+      content: `👋 Hi! I'm Assistly, your Skill Swap assistant!`,
       sender: "bot",
       timestamp: new Date(),
     },
@@ -113,8 +112,10 @@ export function ChatBot() {
                   </div>
                 </Avatar>
                 <div>
-                  <h3 className="font-medium">Thermal Assistant</h3>
-                  <p className="text-xs text-white/80">Ask me about THERMO!</p>
+                  <h3 className="font-medium">Assistly</h3>
+                  <p className="text-xs text-white/80">
+                    Ask me about this website!
+                  </p>
                 </div>
               </div>
               <Button
@@ -169,7 +170,7 @@ export function ChatBot() {
                 <Button
                   type="submit"
                   disabled={!message.trim() || isTyping}
-                  className="bg-[#1A91F0] hover:bg-[#0D47A1] text-white"
+                  className="bg-[#9b6cfe] hover:bg-[#7828BD] text-white"
                 >
                   {isTyping ? (
                     <Loader2 size={18} className="animate-spin" />
