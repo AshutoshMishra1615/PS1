@@ -1,5 +1,6 @@
+"use client";
+
 import React, { useState, useRef, useEffect } from "react";
-// import { generateGeminiResponse } from "@/app/api/geminiApi"; // REMOVE this line
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ export function ChatBot() {
     {
       id: "1",
       content:
-        "👋 Hi! I'm your Thermal assistant. Ask me about any thermal question and query",
+        "👋 Hi! I'm your thermal assistant. Ask me about Peltier modules, Seebeck effect, or any thermal queries!",
       sender: "bot",
       timestamp: new Date(),
     },
@@ -27,13 +28,12 @@ export function ChatBot() {
     }
   }, [messages]);
 
-  const toggleChat = () => setIsOpen(!isOpen);
+  const toggleChat = () => setIsOpen((prev) => !prev);
 
   const handleSendMessage = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!message.trim()) return;
 
-    // Add user message
     const userMessage = {
       id: Date.now().toString(),
       content: message,
@@ -46,13 +46,13 @@ export function ChatBot() {
     setIsTyping(true);
 
     try {
-      // Call the Next.js API route
-      const response = await fetch("/api/geminiApi", {
+      const res = await fetch("/api/geminiApi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message }),
       });
-      const data = await response.json();
+
+      const data = await res.json();
 
       const botMessage = {
         id: (Date.now() + 1).toString(),
@@ -62,13 +62,13 @@ export function ChatBot() {
       };
 
       setMessages((prev) => [...prev, botMessage]);
-    } catch (error) {
-      console.error("Error fetching AI response:", error);
+    } catch (err) {
+      console.error("Gemini error:", err);
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 2).toString(),
-          content: "Sorry, something went wrong. Please try again.",
+          content: "⚠️ Error getting response. Try again.",
           sender: "bot",
           timestamp: new Date(),
         },
@@ -97,7 +97,14 @@ export function ChatBot() {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div className="z-50 fixed bottom-24 right-6 w-[350px] h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ duration: 0.3 }}
+            className="z-50 fixed bottom-24 right-6 w-[350px] h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200"
+          >
+            {/* Header */}
             <div className="bg-gradient-to-r from-[#9b6cfe] to-[#7828BD] text-white p-4 flex justify-between">
               <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8 border-2 border-white/50">
@@ -120,14 +127,14 @@ export function ChatBot() {
               </Button>
             </div>
 
-            {/* Messages */}
+            {/* Message Feed */}
             <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
               {messages.map((msg) => (
                 <motion.div
                   key={msg.id}
                   className={`flex ${
                     msg.sender === "user" ? "justify-end" : "justify-start"
-                  }`}
+                  } mb-2`}
                 >
                   <div
                     className={`max-w-[80%] px-4 py-2 rounded-2xl ${
@@ -140,15 +147,13 @@ export function ChatBot() {
                   </div>
                 </motion.div>
               ))}
-
-              {/* Typing Indicator */}
               {isTyping && (
-                <p className="text-gray-500 text-sm">AI is typing...</p>
+                <p className="text-gray-500 text-sm italic">AI is typing...</p>
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Field */}
+            {/* Input */}
             <form
               onSubmit={handleSendMessage}
               className="p-3 border-t border-gray-200 bg-white"
@@ -156,7 +161,7 @@ export function ChatBot() {
               <div className="flex gap-2">
                 <Input
                   type="text"
-                  placeholder="Ask questions"
+                  placeholder="Ask a thermal question..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   className="flex-1 text-black"
