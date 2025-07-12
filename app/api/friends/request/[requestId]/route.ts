@@ -7,7 +7,6 @@ import { Friendship } from "@/types"; // Assuming Friendship interface is in @/t
 import { io } from "socket.io-client"; // Import the socket.io client to connect to your WebSocket server
 
 export async function POST(request: NextRequest) {
-  // 1. Authenticate the user making the request
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

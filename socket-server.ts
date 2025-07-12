@@ -12,7 +12,6 @@ const onlineUsers = new Map();
 io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  // When a user logs in, they should register themselves with their user ID
   socket.on("register", (userId) => {
     socket.join(userId); // Join a room named after their user ID
     onlineUsers.set(userId, socket.id);
