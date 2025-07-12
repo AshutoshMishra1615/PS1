@@ -17,11 +17,10 @@ export async function GET(
   try {
     const client = await clientPromise;
     const db = client.db();
-    const messagesCollection = db.collection<Message>("messages");
-
-    const messages = await messagesCollection
+    const messages = await db
+      .collection<Message>("messages")
       .find({ conversationId: new ObjectId(params.friendshipId) })
-      .sort({ createdAt: 1 }) // Get messages in chronological order
+      .sort({ createdAt: 1 })
       .toArray();
 
     return NextResponse.json(messages);

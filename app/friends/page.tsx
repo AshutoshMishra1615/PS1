@@ -10,12 +10,12 @@ import { Send, Check, X, Users, Mail } from "lucide-react";
 import toast from "react-hot-toast";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
-import { User, Message } from "@/types"; // Ensure your types file has User and Message interfaces
+import { User, Message } from "@/types"; // Make sure your types file has User and Message interfaces
 import { io, Socket } from "socket.io-client";
 
-// Define clear types for the data we'll be handling
+// Define clear types for the data handled by this page
 interface PendingRequest {
-  _id: string; // This is the friendshipId
+  _id: string; // The friendshipId
   requester: User;
 }
 
@@ -38,7 +38,7 @@ const ChatBox = ({
   const chatEndRef = useRef<null | HTMLDivElement>(null);
 
   useEffect(() => {
-    // Fetch historical messages for this chat
+    // Fetch historical messages for this chat when the component loads
     const fetchHistory = async () => {
       const res = await fetch(`/api/chat/${friendData.friendshipId}`);
       if (res.ok) {
@@ -52,7 +52,7 @@ const ChatBox = ({
     const newSocket = io("http://localhost:3001");
     setSocket(newSocket);
 
-    // Join a room specific to this chat using the friendshipId
+    // Join a room specific to this chat using the unique friendshipId
     newSocket.emit("join_chat_room", friendData.friendshipId);
 
     // Listen for new incoming messages for this room
@@ -60,29 +60,42 @@ const ChatBox = ({
       setMessages((prev) => [...prev, message]);
     });
 
-    // Disconnect the socket when the component unmounts or friend changes
-    return () => {
-      newSocket.disconnect();
-    };
-  }, [friendData.friendshipId]); // Rerun effect if the friend changes
+    // Disconnect the socket when the component unmounts or the friend changes
+    return () => newSocket.disconnect();
+  }, [friendData.friendshipId]); // Rerun effect if the selected friend changes
 
   // Auto-scroll to the latest message
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSendMessage = () => {
-    if (newMessage.trim() === "" || !socket) return;
+  // Updated function to call the API route that saves messages
+  const handleSendMessage = async () => {
+    if (newMessage.trim() === "") return;
 
-    const messageData = {
-      conversationId: friendData.friendshipId,
-      senderId: currentUser.id,
-      recipientId: friendData.friend._id,
-      content: newMessage,
-    };
+    const messageContent = newMessage;
+    setNewMessage(""); // Optimistically clear the input
 
-    socket.emit("send_message", messageData);
-    setNewMessage("");
+    try {
+      const response = await fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: friendData.friendshipId,
+          content: messageContent,
+        }),
+      });
+
+      // The message will be displayed via the socket listener for everyone.
+      // This ensures only saved messages are shown.
+      if (!response.ok) {
+        toast.error("Failed to send message.");
+        setNewMessage(messageContent); // Restore the message on failure
+      }
+    } catch (error) {
+      toast.error("Failed to send message.");
+      setNewMessage(messageContent);
+    }
   };
 
   return (
@@ -95,16 +108,18 @@ const ChatBox = ({
         <h3 className="font-bold text-lg">{friendData.friend.name}</h3>
       </div>
       <div className="flex-grow p-4 overflow-y-auto bg-gray-50">
-        {messages.map((msg, index) => (
+        {messages.map((msg) => (
           <div
-            key={index}
+            key={msg._id.toString()}
             className={`flex items-end gap-2 ${
-              msg.senderId === currentUser.id ? "justify-end" : "justify-start"
+              msg.senderId.toString() === currentUser.id
+                ? "justify-end"
+                : "justify-start"
             } mb-4`}
           >
             <div
               className={`max-w-xs md:max-w-md p-3 rounded-lg ${
-                msg.senderId === currentUser.id
+                msg.senderId.toString() === currentUser.id
                   ? "bg-purple-600 text-white rounded-br-none"
                   : "bg-gray-200 text-black rounded-bl-none"
               }`}
@@ -139,16 +154,11 @@ export default function FriendsPage() {
   const [selectedFriend, setSelectedFriend] = useState<FriendData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetchData();
-    }
-  }, [status]);
-
   const fetchData = async () => {
+    if (status !== "authenticated") return;
     setLoading(true);
     try {
-      const response = await fetch("/api/friends/all"); // Single API call
+      const response = await fetch("/api/friends/all");
       if (response.ok) {
         const { pendingRequests, friends } = await response.json();
         setPendingRequests(pendingRequests);
@@ -158,11 +168,14 @@ export default function FriendsPage() {
       }
     } catch (error) {
       toast.error("An error occurred while fetching data.");
-      console.error(error);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, [status]);
 
   const handleRequestResponse = async (
     requestId: string,
@@ -175,19 +188,33 @@ export default function FriendsPage() {
         body: JSON.stringify({ status: newStatus }),
       });
 
-      if (response.ok) {
-        toast.success(`Request ${newStatus}.`);
-        fetchData(); // Refresh all data to update UI
-        if (selectedFriend?.friendshipId === requestId) {
-          setSelectedFriend(null); // Deselect if the current chat was with a pending user
+      if (!response.ok) {
+        const errorText = await response.text();
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || "An API error occurred.");
+        } catch (e) {
+          throw new Error(
+            `Server responded with ${response.status}. Please check the API route.`
+          );
         }
+      }
+
+      const responseText = await response.text();
+      if (responseText) {
+        const data = JSON.parse(responseText);
+        toast.success(data.message || `Request ${newStatus}.`);
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error);
+        toast.success(`Request ${newStatus}.`);
+      }
+
+      fetchData();
+      if (selectedFriend?.friendshipId === requestId) {
+        setSelectedFriend(null);
       }
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to respond to request."
+        error instanceof Error ? error.message : "An unknown error occurred."
       );
     }
   };
@@ -208,7 +235,6 @@ export default function FriendsPage() {
           My Connections
         </h1>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Lists */}
           <div className="lg:col-span-1 flex flex-col gap-8">
             <Card className="shadow-lg">
               <CardHeader>
@@ -263,7 +289,6 @@ export default function FriendsPage() {
                 )}
               </CardContent>
             </Card>
-
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -300,8 +325,6 @@ export default function FriendsPage() {
               </CardContent>
             </Card>
           </div>
-
-          {/* Right Column: Chat Window */}
           <div className="lg:col-span-2">
             <Card className="shadow-lg h-[70vh] overflow-hidden">
               {selectedFriend && session?.user ? (

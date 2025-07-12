@@ -62,7 +62,6 @@ export interface Message {
   _id?: ObjectId;
   conversationId: ObjectId; // Links messages to a friendship
   senderId: ObjectId;
-  recipientId: ObjectId;
   content: string;
   createdAt: Date;
 }

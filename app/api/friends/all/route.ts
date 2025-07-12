@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
     const db = client.db();
     const currentUserId = new ObjectId(session.user.id);
 
-    // Get Pending Requests with User Details
     const pendingRequests = await db
       .collection("friendships")
       .aggregate([
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
         { $unwind: "$requesterDetails" },
         {
           $project: {
-            _id: 1, // Friendship ID
+            _id: 1,
             requester: {
               _id: "$requesterDetails._id",
               name: "$requesterDetails.name",
@@ -44,7 +43,6 @@ export async function GET(request: NextRequest) {
       ])
       .toArray();
 
-    // Get Accepted Friends with User Details
     const friends = await db
       .collection("friendships")
       .aggregate([
@@ -54,7 +52,6 @@ export async function GET(request: NextRequest) {
             $or: [{ requester: currentUserId }, { recipient: currentUserId }],
           },
         },
-        // Determine the friend's ID
         {
           $project: {
             friendId: {
@@ -66,7 +63,6 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        // Lookup the friend's details
         {
           $lookup: {
             from: "users",
@@ -76,7 +72,6 @@ export async function GET(request: NextRequest) {
           },
         },
         { $unwind: "$friendDetails" },
-        // Project the final shape
         {
           $project: {
             friendshipId: "$_id",
